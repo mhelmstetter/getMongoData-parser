@@ -1,0 +1,35 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:util="http://www.springframework.org/schema/util" xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+	
+    <bean id="velocityEngine" class="org.springframework.ui.velocity.VelocityEngineFactoryBean">
+        <property name="velocityProperties">
+            <props>
+                <prop key="resource.loader">class</prop>
+                <prop key="class.resource.loader.class">
+                    org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader
+                </prop>
+                <prop key="velocimacro.library"></prop>
+            </props>
+        </property>
+    </bean>
+	
+	<bean id="velocityService" class="com.mongodb.util.VelocityServiceImpl">
+		<property name="velocityEngine" ref="velocityEngine"/>
+		<property name="tools">
+			<util:map>                      
+				
+             </util:map>  
+		</property>
+	</bean>
+	
+	<bean id="htmlPrinter" class="com.mongodb.getmongodata.HtmlPrinter">
+	   <property name="velocityService" ref="velocityService"/>
+	   <property name="template" value="templates/databases2.html"/>    
+
+   </bean>
+</beans>
+
