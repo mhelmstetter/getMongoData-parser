@@ -1,0 +1,9 @@
+*.class
+*.timestamp
+*.log
+/target/
+.project
+.classpath
+.settings
+/bin/*
+!/bin/getMongoDataParser.jar
