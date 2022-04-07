@@ -12,3 +12,12 @@ wget -O mongo-util.jar https://github.com/mhelmstetter/getMongoData-parser/blob/
 ```
 alias getmongodata="java -jar ${HOME}/git/getMongoData-parser/bin/getMongoDataParser.jar"
 ```
+3. Run it!
+```
+getmongodata -f getMongoData.log
+```
+or
+```
+java -jar getMongoDataParser.jar -f getMongoData.log
+```
+the ouptput will be written to a file of the same name with a `html` extenstion, e.g. getMongoData.html for the above example.
