@@ -4,7 +4,7 @@ Parses MongoDB getMongoData.js output and produces an HTML report and/or inserts
 
 Quickstart
 ----------
-1. Download the getMongoData script. It is recommended to use the version from [this gist](https://gist.github.com/mhelmstetter/fdd7ad515799af3c02a3e30a70a5c258). Execute the jar file using the `mongo` shell, note that the script does not currently work using the newer `mongosh` shell. Instructions for executing are at the top of the getMongoData js file.
+1. Download the getMongoData script. It is recommended to use the version from [this gist](https://gist.github.com/mhelmstetter/fdd7ad515799af3c02a3e30a70a5c258). Execute the script using the `mongo` shell, note that the script does not currently work using the newer `mongosh` shell. Instructions for executing are at the top of the getMongoData js file.
     
 1. Download the jar file:
 ```
