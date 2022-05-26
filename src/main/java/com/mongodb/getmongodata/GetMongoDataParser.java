@@ -87,6 +87,8 @@ public class GetMongoDataParser {
     
     private List<Cluster> clusters = new ArrayList<Cluster>();
     
+    private String dbName;
+    private Database db;
     private Collection coll;
     CollectionStats collStats;
 
@@ -291,7 +293,7 @@ public class GetMongoDataParser {
         Object obj = parseJson();
         List jsonArray = (List) obj;
 
-        Database database = currentCluster.getDatabase(databaseName);
+        db = currentCluster.getDatabase(databaseName);
 
         if (jsonArray != null) {
         	Iterator iterator = jsonArray.iterator();
@@ -312,7 +314,7 @@ public class GetMongoDataParser {
                 
                 Collection collection = new Collection();
                 collection.setName(collectionName);
-                database.addCollection(collection);
+                db.addCollection(collection);
             }
         } else {
         	logger.warn("Collections list is empty for db: " + databaseName);
@@ -367,12 +369,16 @@ public class GetMongoDataParser {
         db.setDbStats(dbStats);
     }
     
-    private static CollectionStats parseCollectionStats(Map jsonObject, boolean topLevel) {
+    private CollectionStats parseCollectionStats(Map jsonObject, boolean topLevel) {
     	CollectionStats collStats = new CollectionStats();
     	String nsStr = (String)jsonObject.get("ns");
         if (nsStr != null) {
         	Namespace ns = new Namespace(nsStr);
             collStats.setNs(ns);
+            
+            String dbName = collStats.getDatabaseName();
+            Database db = currentCluster.getDatabase(dbName);
+            coll = db.getCollection(collStats.getCollectionName());
         }
         
         Object testGoodStats = jsonObject.get("storageSize");
@@ -409,9 +415,10 @@ public class GetMongoDataParser {
         collStats.setIndexSizes(indexSizes);
         
         Map<String,Map> wiredTiger = (Map<String,Map>)jsonObject.get("wiredTiger");
-        if (wiredTiger != null && !topLevel) {
+        if (wiredTiger != null ) { // TODO fix for not sharded && !topLevel
         	Map<String,Object> cache = (Map<String,Object>)wiredTiger.get("cache");
         	Long inCache = (Long) cache.get("bytes currently in the cache");
+        	
         	collStats.setBytesInCache(inCache.doubleValue());
         	Long read = (Long) cache.get("bytes read into cache");
         	collStats.setBytesReadIntoCache(read.doubleValue());
@@ -420,6 +427,27 @@ public class GetMongoDataParser {
         	 
         }
         
+        
+        
+        
+        	Map<String,Map<String, Map>> indexDetails = (Map<String,Map<String, Map>>)jsonObject.get("indexDetails");
+        	
+        	if (indexDetails != null) {
+        		for (Map.Entry<String, Map<String, Map>> entry : indexDetails.entrySet()) {
+            		String ixName = entry.getKey();
+            		Map<String, Map> details = entry.getValue();
+            		Index ix = coll.getIndexByInternalName(ixName);
+            		//Index ix = coll.getIndexes().get(ixName);
+            		if (ix == null) {
+                		ix = new Index(ixName);
+                        coll.addIndex(ix);
+                	}
+            		Map detailsEntries = details.get("cache");
+            		ix.incrementBytesInCache((Long)detailsEntries.get("bytes currently in the cache"));
+            		
+            	}
+        	}
+        	
     	return collStats;
     }
 
@@ -433,10 +461,7 @@ public class GetMongoDataParser {
 
         // CollectionStats collStats = parseGson(CollectionStats.class);
         collStats = parseCollectionStats(jsonObject, true);
-        String dbName = collStats.getDatabaseName();
-        Database db = currentCluster.getDatabase(dbName);
         
-        coll = db.getCollection(collStats.getCollectionName());
         if (coll == null) {
         	// ignore, could be filtered
             //System.out.println("***** Collection is null for " + collStats.getCollectionName());
@@ -452,7 +477,9 @@ public class GetMongoDataParser {
         	for (Map.Entry<String, Map> entry : shardStatsJson.entrySet()) {
             	BaseCollectionStats shardStats = parseCollectionStats(entry.getValue(), false);
             	if (shardStats != null) {
+            		
             		collStats.addShardStats(entry.getKey(), shardStats);
+            		
             	}
             }
         }
@@ -489,6 +516,9 @@ public class GetMongoDataParser {
     	if (coll == null) {
     		return;
     	}
+    	if (coll.getCollectionStats() == null) {
+    		System.out.println();
+    	}
         List indexesArray = (List) parseJson();
 
         if (indexesArray == null) {
@@ -498,6 +528,8 @@ public class GetMongoDataParser {
             Map indexJson = i.next();
 
             Long expire = (Long)indexJson.get("expireAfterSeconds");
+            
+            String name = (String)indexJson.get("name");
             
             Map<String, Object> key = (Map) indexJson.get("key");
             
@@ -519,17 +551,19 @@ public class GetMongoDataParser {
             }
             
     
-            //String name = (String)indexJson.get("name");
-            Index ix = new Index(key, sb.toString());
+            String internalName = (String)indexJson.get("name");
+            Index ix = coll.getIndexByInternalName(internalName);
+            if (ix == null) {
+            	ix = new Index(key, sb.toString());
+            } else {
+            	ix.setKey(key);
+            	ix.setName(sb.toString());
+            }
+            
             ix.ns = (String)indexJson.get("ns");
             ix.setExpireAfterSeconds(expire);
+            ix.internalName = name;
             coll.addIndex(ix);
-            
-            if (ix.ns.equals("robocopunicorn.deviceData")) {
-            	 String sKey = StringUtils.join(key.keySet(), ", ");
-                 System.out.println("+++++" + ix.ns + ": " + sKey);
-            }
-           
 
             String xName = (String) indexJson.get("name");
             Map<String, Long> ixSizes = coll.getCollectionStats().getIndexSizes();

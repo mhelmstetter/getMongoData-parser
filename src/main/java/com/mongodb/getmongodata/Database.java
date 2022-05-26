@@ -38,6 +38,31 @@ public class Database {
         collections.put(collection.getName(), collection);
     }
     
+    public Double getTotalIndexBytesInCache() {
+    	Double total = 0.0;
+    	for (Collection c : collections.values()) {
+    		
+    		for (Index ix : c.getIndexes().values()) {
+    			if (ix.getBytesInCache() != null) {
+    				total += ix.getBytesInCache()/BaseCollectionStats.ONE_GB;
+    			}
+    		}
+    	}
+    	return total;
+    }
+    
+    public Double getTotalDataBytesInCache() {
+    	Double total = 0.0;
+    	for (Collection c : collections.values()) {
+    		CollectionStats cs = c.getCollectionStats();
+    		if (cs != null) {
+    			total += cs.getBytesInCacheGb();
+    		}
+    		
+    	}
+    	return total;
+    }
+    
     public java.util.Collection<Collection> getCollections() {
         return collections.values();
         

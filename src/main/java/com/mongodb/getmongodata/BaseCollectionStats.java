@@ -4,7 +4,7 @@ import java.util.Map;
 
 public class BaseCollectionStats {
 	
-	Double ONE_GB = 1024.0 * 1024 * 1024;
+	public final static Double ONE_GB = 1024.0 * 1024 * 1024;
     Double count;
     Double size = 0.0;
     Double avgObjSize = 0.0;

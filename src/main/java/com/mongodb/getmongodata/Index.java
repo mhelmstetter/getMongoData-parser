@@ -12,10 +12,12 @@ public class Index {
         this.name = name; 
     }
     
-    public Index() {
+    public Index(String internalName) {
+    	this.internalName = internalName;
     }
     
     
+    public String internalName;
     public String name;
     public Map<String, Object> key;
     public String longName;
@@ -23,6 +25,9 @@ public class Index {
     public Double size;
     public Long accessOps;
     public Long expireAfterSeconds;
+    
+    private Double bytesInCache = 0.0;
+    
     public Set<String> accessDates = new TreeSet<String>();
     
     public String getName() {
@@ -62,6 +67,22 @@ public class Index {
 
 	public void setExpireAfterSeconds(Long expireAfterSeconds) {
 		this.expireAfterSeconds = expireAfterSeconds;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public void setKey(Map<String, Object> key) {
+		this.key = key;
+	}
+	
+	public void incrementBytesInCache(Long bytesInCache) {
+		this.bytesInCache += bytesInCache;
+	}
+
+	public Double getBytesInCache() {
+		return bytesInCache;
 	}
     
 

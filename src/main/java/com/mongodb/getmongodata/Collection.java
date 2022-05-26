@@ -11,6 +11,8 @@ public class Collection {
     private CollectionStats collectionStats;
     
     private Map<String, Index> indexes = new LinkedHashMap<>();
+    
+    private Map<String, Index> internalNameMap = new LinkedHashMap<>();
 
     public String getName() {
         return name;
@@ -28,13 +30,20 @@ public class Collection {
         return indexes;
     }
     
+    public Index getIndexByInternalName(String name) {
+        return internalNameMap.get(name);
+    }
+    
     public void setCollectionStats(CollectionStats collectionStats) {
         this.collectionStats = collectionStats;
     }
     
     public void addIndex(Index index) {
-    	String ixName = StringUtils.join(index.key.keySet(), ", ");
-        indexes.put(ixName, index);
+    	if (index.key != null) {
+    		String ixName = StringUtils.join(index.key.keySet(), ", ");
+            indexes.put(ixName, index);
+    	}
+        internalNameMap.put(index.internalName, index);
     }
 
 }

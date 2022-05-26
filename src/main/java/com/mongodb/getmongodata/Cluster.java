@@ -45,7 +45,7 @@ public class Cluster {
     
     public void calculateStats() {
         for (Database database : databases.values()) {
-            if (! database.getName().equals("local")) {
+            //if (! database.getName().equals("local")) {
             	DatabaseStats s = database.getDbStats();
             	if (s != null) {
             		stats.addStats(s);
@@ -53,7 +53,7 @@ public class Cluster {
             		System.out.println("stats is null for " + database.getName());
             	}
                 
-            }
+            //}
         }
     }
 
