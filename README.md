@@ -8,7 +8,7 @@ Quickstart
 ----------
 
 1. Download the getMongoData script. It is recommended to use the version
-   from [this gist](https://gist.github.com/mhelmstetter/fdd7ad515799af3c02a3e30a70a5c258). Execute the script using
+   from [this gist](https://gist.github.com/mhelmstetter/063ddfc941336d5b7959c00ac7217ea8). Execute the script using
    the `mongo` shell, note that the script does not currently work using the newer `mongosh` shell. Instructions for
    executing are at the top of the getMongoData js file.
 
