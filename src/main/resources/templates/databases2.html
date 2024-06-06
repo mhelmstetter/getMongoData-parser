@@ -213,6 +213,7 @@ code,pre{font-family:Monaco,Consolas,"Lucida Console",monospace;
         <th>Bytes in cache (GB)</th>
         <th>Bytes read (GB)</th>
         <th>Bytes written (GB)</th>
+        <th>Bytes avail reuse (GB)</th>
       </tr>
       </thead>
       <tbody>
@@ -234,6 +235,8 @@ code,pre{font-family:Monaco,Consolas,"Lucida Console",monospace;
         <td class="right">$String.format("%,.0f", ${collStats.bytesInCacheGb})</td>
         <td class="right">$String.format("%,.0f", ${collStats.bytesReadIntoCacheGb})</td>
         <td class="right">$String.format("%,.0f", ${collStats.bytesWrittenFromCacheGb})</td>
+        <td class="right">$String.format("%,.0f", ${collStats.fileMbAvailable})</td>
+        
       </tr>
       #end
       </tbody>

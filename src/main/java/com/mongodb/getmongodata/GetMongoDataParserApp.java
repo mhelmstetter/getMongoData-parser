@@ -18,7 +18,7 @@ public class GetMongoDataParserApp {
     private static CommandLine initializeAndParseCommandLineOptions(String[] args) {
         options = new Options();
         options.addOption(new Option("help", "print this message"));
-        options.addOption(OptionBuilder.withArgName("getMongoData log file").hasArg().withLongOpt("file")
+        options.addOption(OptionBuilder.withArgName("getMongoData log file").hasArgs().withLongOpt("file")
                 .isRequired(true).create("f"));
         options.addOption(OptionBuilder.withArgName("output file").hasArg().withLongOpt("output")
                 .isRequired(false).create("o"));
@@ -59,6 +59,7 @@ public class GetMongoDataParserApp {
         CommandLine line = initializeAndParseCommandLineOptions(args);
         //String filename = (String)line.getOptionValue("f");
         String[] fileNames = line.getOptionValues("f");
+        System.out.println("fileNames: " + fileNames);
         File[] files = new File[fileNames.length];
         int i = 0;
         for (String fn : fileNames) {
@@ -69,8 +70,15 @@ public class GetMongoDataParserApp {
         String prefix = line.getOptionValue("p");
         String[] filters = line.getOptionValues("x");
         boolean skipSamples = line.hasOption("n");
-        GetMongoDataParser parser = new GetMongoDataParser(files, output, connectionUri, filters, skipSamples, prefix);
-        parser.parse();
+        if (fileNames.length > 0 && fileNames[0].endsWith(".json")) {
+        	GetMongoDataParserJson parser = new GetMongoDataParserJson(files[0]);
+            parser.parse();
+        	
+        } else {
+        	GetMongoDataParser parser = new GetMongoDataParser(files, output, connectionUri, filters, skipSamples, prefix);
+            parser.parse();
+        }
+        
     }
 
 }

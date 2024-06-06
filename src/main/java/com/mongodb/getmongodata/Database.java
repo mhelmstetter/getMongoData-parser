@@ -4,6 +4,10 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class Database {
+	
+	public Database(String name) {
+		this.name = name;
+	}
 
     private String name;
     private boolean shardingEnabled;
@@ -31,11 +35,16 @@ public class Database {
     }
 
     public void addCollection(Collection collection) {
-    	String name = collection.getName();
-    	if (name.startsWith("evt")) {
-    		//System.out.println();
+    	String ns = collection.getNamespace().getNamespace();
+    	
+    	
+    	if (! collections.containsKey(collection.getName())) {
+    		collections.put(collection.getName(), collection);
     	}
-        collections.put(collection.getName(), collection);
+        
+        if (ns.equals("core.a_t_s_note")) {
+    		System.out.println();
+    	}
     }
     
     public Double getTotalIndexBytesInCache() {

@@ -28,7 +28,7 @@ import com.google.gson.GsonBuilder;
 public class GetMongoDataParserJson {
     
     protected final static ApplicationContext applicationContext = new ClassPathXmlApplicationContext(
-            "getmongodata/spring.xml");
+            "/spring.xml");
     
     private String currentLine = null;
     //private String next = null;
@@ -87,7 +87,7 @@ public class GetMongoDataParserJson {
         Iterator iterator = jsonArray.iterator();
         while (iterator.hasNext()) {
             String collectionName = (String)iterator.next();
-            Collection collection = new Collection();
+            Collection collection = new Collection(new Namespace(databaseName, collectionName));
             collection.setName(collectionName);
             database.addCollection(collection);
         }
@@ -125,7 +125,7 @@ public class GetMongoDataParserJson {
             //System.out.println("+++++" + ixName);
             
             String name = (String)indexJson.get("name");
-            Index ix = new Index(key, sKey);
+            Index ix = new Index(null, key, sKey);
             
             coll.addIndex(ix);
             
@@ -167,8 +167,8 @@ public class GetMongoDataParserJson {
             Map dbJson = iterator.next();
             //JSONObject dbJson = iterator.next();
             //System.out.println(db.toJSONString());
-            Database db = new Database();
-            db.setName((String)dbJson.get("name"));
+            String dbName = (String)dbJson.get("name");
+            Database db = new Database(dbName);
             db.setSizeOnDisk((Long)dbJson.get("sizeOnDisk"));
             databases.addDatabase(db);
         }
@@ -248,7 +248,7 @@ public class GetMongoDataParserJson {
 
     
     @SuppressWarnings("unused")
-    private void readFile() throws IOException, ParseException {
+    public void parse() throws IOException, ParseException {
         
         List<Map> result = (List<Map>)parseJson();
         
@@ -305,7 +305,7 @@ public class GetMongoDataParserJson {
     public static void main(String[] args) throws IOException, ParseException {
         File f = new File(args[0]);
         GetMongoDataParserJson parser = new GetMongoDataParserJson(f);
-        parser.readFile();
+        parser.parse();
         
     }
 

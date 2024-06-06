@@ -15,11 +15,13 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -88,13 +90,18 @@ public class GetMongoDataParser {
     private List<Cluster> clusters = new ArrayList<Cluster>();
     
     private String dbName;
+    private Map<String, Database> databases = new HashMap<>();
+    private Map<String, Map<String, Object>> shardKeys = new HashMap<>();
     private Database db;
     private Collection coll;
+    private Namespace ns;
     CollectionStats collStats;
 
     private String hostType = null;
 
     Pattern collectionListDbNamePattern = Pattern.compile("^.*'(.*)'");
+    
+    Pattern uuidPattern = Pattern.compile("UUID\\(\"(.*?)\"\\)");
     
     private MongoClient mongoClient;
     private MongoDatabase reportDb;
@@ -173,6 +180,9 @@ public class GetMongoDataParser {
             } else if (currentLine.contains("Sharded databases")) {
                 currentSection = "shardedDatabases";
                 shardedDatabases();
+            } else if (currentLine.contains("Sharded collections")) {
+                currentSection = "shardedCollections";
+                shardedCollections();
             } else if (currentLine.contains("Shell hostname")) {
             	currentSection = "shellHostname";
             	shellHostname();
@@ -188,6 +198,25 @@ public class GetMongoDataParser {
             return;
         }
     }
+    
+    private void shardedCollections() throws ParseException, IOException {
+
+    	Object obj = parseJson();
+        if (obj == null) {
+            return;
+        }
+        List<Map<String, Object>> collsList = (List<Map<String, Object>>)obj;
+        for (Map<String, Object> coll : collsList) {
+        	String ns = (String)coll.get("_id");
+        	
+        	Boolean dropped = (Boolean)coll.get("dropped");
+        	if (Boolean.TRUE.equals(dropped)) {
+        		continue;
+        	}
+        	Map<String, Object> key = (Map<String, Object>)coll.get("key");
+        	shardKeys.put(ns, key);
+        }
+     }
     
     private void shellHostname() throws IOException {
     	currentLine = in.readLine();
@@ -299,12 +328,12 @@ public class GetMongoDataParser {
         	Iterator iterator = jsonArray.iterator();
             while (iterator.hasNext()) {
                 String collectionName = (String) iterator.next();
-                String ns = databaseName + "." + collectionName;
+                String nsStr = databaseName + "." + collectionName;
                 boolean exclude = false;
                 for (Pattern p : nsExcludePatterns) {
-                	Matcher nsMatcher = p.matcher(ns);
+                	Matcher nsMatcher = p.matcher(nsStr);
                     if (nsMatcher.find()) {
-                    	System.out.println("Excluding " + ns);
+                    	System.out.println("Excluding " + nsStr);
                     	exclude = true;
                     }
                 }
@@ -312,8 +341,9 @@ public class GetMongoDataParser {
                 	continue;
                 }
                 
-                Collection collection = new Collection();
+                Collection collection = new Collection(new Namespace(databaseName, collectionName));
                 collection.setName(collectionName);
+                Map<String, Object> x = shardKeys.get(nsStr);
                 db.addCollection(collection);
             }
         } else {
@@ -372,12 +402,19 @@ public class GetMongoDataParser {
     private CollectionStats parseCollectionStats(Map jsonObject, boolean topLevel) {
     	CollectionStats collStats = new CollectionStats();
     	String nsStr = (String)jsonObject.get("ns");
+    	if (nsStr.equals("core.a_t_s_note")) {
+    		System.out.println();
+    	}
         if (nsStr != null) {
-        	Namespace ns = new Namespace(nsStr);
+        	this.ns = new Namespace(nsStr);
             collStats.setNs(ns);
             
             String dbName = collStats.getDatabaseName();
             Database db = currentCluster.getDatabase(dbName);
+            if (db == null) {
+            	logger.warn("database {} not found, missing from list of databases?", dbName);
+            	return null;
+            }
             coll = db.getCollection(collStats.getCollectionName());
         }
         
@@ -385,6 +422,8 @@ public class GetMongoDataParser {
         if (testGoodStats == null) {
             return null;
         }
+        
+        
         collStats.setAvgObjSize((Double) jsonObject.get("avjObjSize"));
         collStats.setSize(((Long) jsonObject.get("size")).doubleValue());
         Long storageSize = (Long) jsonObject.get("storageSize");
@@ -416,8 +455,14 @@ public class GetMongoDataParser {
         
         Map<String,Map> wiredTiger = (Map<String,Map>)jsonObject.get("wiredTiger");
         if (wiredTiger != null ) { // TODO fix for not sharded && !topLevel
+        	
+        	Map bm = wiredTiger.get("block-manager");
+        	Long reuse = (Long)bm.get("file bytes available for reuse");
+        	
         	Map<String,Object> cache = (Map<String,Object>)wiredTiger.get("cache");
         	Long inCache = (Long) cache.get("bytes currently in the cache");
+        	
+        	collStats.setFileMbAvailable(reuse.doubleValue());
         	
         	collStats.setBytesInCache(inCache.doubleValue());
         	Long read = (Long) cache.get("bytes read into cache");
@@ -439,7 +484,7 @@ public class GetMongoDataParser {
             		Index ix = coll.getIndexByInternalName(ixName);
             		//Index ix = coll.getIndexes().get(ixName);
             		if (ix == null) {
-                		ix = new Index(ixName);
+                		ix = new Index(collStats.getNs(), ixName);
                         coll.addIndex(ix);
                 	}
             		Map detailsEntries = details.get("cache");
@@ -527,9 +572,12 @@ public class GetMongoDataParser {
         for (Iterator<Map> i = indexesArray.iterator(); i.hasNext();) {
             Map indexJson = i.next();
 
+            Boolean hidden = (Boolean)indexJson.get("hidden");
             Long expire = (Long)indexJson.get("expireAfterSeconds");
             
             String name = (String)indexJson.get("name");
+            //String nsStr = (String)indexJson.get("ns");
+            Namespace ns = new Namespace(db.getName(), coll.getName());
             
             Map<String, Object> key = (Map) indexJson.get("key");
             
@@ -554,13 +602,16 @@ public class GetMongoDataParser {
             String internalName = (String)indexJson.get("name");
             Index ix = coll.getIndexByInternalName(internalName);
             if (ix == null) {
-            	ix = new Index(key, sb.toString());
+            	ix = new Index(ns, key, sb.toString());
             } else {
             	ix.setKey(key);
             	ix.setName(sb.toString());
             }
             
-            ix.ns = (String)indexJson.get("ns");
+            if (Boolean.TRUE.equals(hidden)) {
+            	ix.setHidden(true);
+            }
+            
             ix.setExpireAfterSeconds(expire);
             ix.internalName = name;
             coll.addIndex(ix);
@@ -610,10 +661,6 @@ public class GetMongoDataParser {
                 //System.out.println("xx: " + coll.getName() + " " + ixName);
             }
             
-            if (coll.getName().equals("deviceData")) {
-            	System.out.println("xx: " + coll.getName() + " " + ixName);
-            }
-            
             List ixStatsList = (List)statsJson.get("stats");
             Long totalAccesses = 0L;
             
@@ -627,8 +674,13 @@ public class GetMongoDataParser {
                 Date date = indexStatsFormatter.parse(statsDate);
                 ix.addAccessDate(outputFormatter.format(date));
             }
-            ix.accessOps = totalAccesses;
             
+            
+            ix.accessOps += totalAccesses;
+            
+            if (coll.getName().equals("a_t_s_note") && ixName.equals("_id")) {
+            	System.out.println("xx: " + coll.getName() + " " + ixName);
+            }
         }
         
         /*
@@ -670,12 +722,25 @@ public class GetMongoDataParser {
         Iterator<Map> iterator = databasesJson.iterator();
         while (iterator.hasNext()) {
             Map dbJson = iterator.next();
+            
             // JSONObject dbJson = iterator.next();
             // System.out.println(reportDb.toJSONString());
-            Database db = new Database();
-            db.setName((String) dbJson.get("name"));
-            db.setSizeOnDisk((Long) dbJson.get("sizeOnDisk"));
+            String dbName = (String) dbJson.get("name");
+            
+            Database db = databases.get(dbName);
+            
+            if (db == null) {
+            	db = new Database(dbName);
+            	databases.put(dbName, db);
+            }
             currentCluster.addDatabase(db);
+            
+            Object sizeObj = dbJson.get("sizeOnDisk");
+            if (sizeObj == null) {
+            	continue;
+            }
+            
+            db.setSizeOnDisk((Long)sizeObj);
         }
         // System.out.println(jsonObject.toJSONString());
     }
@@ -748,6 +813,9 @@ public class GetMongoDataParser {
         if (currentLine.contains("BinData(")) {
             currentLine = currentLine.replaceAll("BinData\\([0-9]+,(\".*\")\\)", "$1");
         }
+        if (currentLine.contains("UUID(")) {
+            currentLine = currentLine.replaceAll("UUID\\(\"(.*?)\"\\)", "\"$1\"");
+        }
     }
 
     private String readJson(boolean normalize, boolean preserveLinefeeds) throws IOException {
@@ -804,6 +872,25 @@ public class GetMongoDataParser {
         }
         in.close();
         currentCluster.calculateStats();
+        
+        for (Entry<String, Map<String, Object>> e : shardKeys.entrySet()) {
+        	String nsStr = e.getKey();
+        	Namespace ns = new Namespace(nsStr);
+        	Database db = databases.get(ns.getDatabaseName());
+        	Collection coll = db.getCollection(ns.getCollectionName());
+        	if (coll == null) {
+        		System.out.println("Collection " + nsStr + " not found");
+        		continue;
+        	}
+        	coll.setShardKey(e.getValue());
+        	
+        	for (Index ix : coll.getIndexes().values()) {
+        		if (ix.getKey().equals(e.getValue())) {
+        			ix.setShardKey(true);
+        		}
+        	}
+        }
+        
     }
 
     public void parseCombineMulti() throws IOException {
@@ -937,6 +1024,28 @@ public class GetMongoDataParser {
     	}
     }
     
+    private void saveIndexStats(MongoCollection<Document> statsColl, Index ix) {
+    	
+    	Namespace ns = ix.getNamespace();
+    	String nsStr = ns.getNamespace();
+    	String id = nsStr + "-" + ix.internalName;
+    	Document key = new Document("_id", id);
+    	
+    	List<Bson> updates = new ArrayList<>();
+    	//updates.add(set("db", ns.getDatabaseName()));
+		//updates.add(set("collection", ns.getCollectionName()));
+    	updates.add(set("ns", nsStr));
+    	updates.add(set("hidden", ix.isHidden()));
+    	updates.add(set("shardKey", ix.isShardKey()));
+    	updates.add(set("redundant", ix.isRedundant()));
+    	updates.add(set("accesses", ix.accessOps));
+    	updates.add(set("size", ix.size));
+    	updates.add(set("name", ix.internalName));
+    	
+    	Bson update = combine(updates);
+		statsColl.updateOne(key, update, UPDATE_OPTIONS);
+    }
+    
     private void saveStatsToDb(MongoCollection<Document> statsColl, BaseCollectionStats cs, String shardName) {
     	if (cs != null) {
     		List<Bson> updates = new ArrayList<>();
@@ -965,13 +1074,65 @@ public class GetMongoDataParser {
     	
     }
     
+    public static List<String> findPrefixes(List<String> strings) {
+        List<String> prefixes = new ArrayList<>();
+
+        for (String str1 : strings) {
+            for (String str2 : strings) {
+                if (!str1.equals(str2) && str2.startsWith(str1)) {
+                    prefixes.add(str1);
+                    break;
+                }
+            }
+        }
+
+        return prefixes;
+    }
+    
     private void saveReportToDb() {
     	///String reportDateStr = ymdFormat.format(reportDate);
     	MongoCollection<Document> statsCollection = this.reportDb.getCollection("collStats");
     	MongoCollection<Document> shardStatsCollection = this.reportDb.getCollection("shardStats");
+    	MongoCollection<Document> indexStatsCollection = this.reportDb.getCollection("indexStats");
     	java.util.Collection<Database> dbs = currentCluster.getDatabases();
     	for (Database db : dbs) {
     		for (Collection coll : db.getCollections()) {
+    			
+    			Map<String, Index> indexesMap = coll.getIndexes();
+    			java.util.Collection<Index> indexes = indexesMap.values();
+    			
+    			if (indexes.size() > 1) {
+    				
+    				List<String> keys = new ArrayList<>(indexes.size());
+    				
+    				for (Index i : indexes) {
+    					if (i.getKey().size() > 1) {
+    						keys.add(i.getName());
+    					}
+        			}
+    				
+    				
+					List<String> prefixes = findPrefixes(keys);
+					if (prefixes.size() > 0) { 
+						for (String prefixed : prefixes) {
+							Index redundantIx = indexesMap.get(prefixed);
+							if (redundantIx != null) {
+								logger.debug("redundant index: {}, size: {}", redundantIx.toString(), String.valueOf(redundantIx.size));
+								redundantIx.setRedundant(true);
+							} else {
+								logger.warn("did not find prefixed index in index set: [{}]", prefixed);
+							}
+						}
+					}
+    				
+    				for (Index i : indexes) {
+    					saveIndexStats(indexStatsCollection, i);
+        			}
+    				
+    			}
+    			
+    			
+    			
     			CollectionStats cs = coll.getCollectionStats();
     			if (cs != null) {
     				saveStatsToDb(statsCollection, cs, null);

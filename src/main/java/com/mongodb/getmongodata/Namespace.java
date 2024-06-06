@@ -11,6 +11,9 @@ public class Namespace {
     private final static Pattern namespacePattern = Pattern.compile("^(.*?)\\.(.*)$");
 
     public Namespace(String ns) {
+    	if (ns == null || ns.length() < 2) {
+    		throw new IllegalArgumentException("Invalid ns: " + ns);
+    	}
         Matcher m = namespacePattern.matcher(ns);
         if (m.find()) {
             databaseName = m.group(1);
@@ -18,12 +21,21 @@ public class Namespace {
         }
     }
 
-    public String getDatabaseName() {
+    public Namespace(String databaseName, String collectionName) {
+		this.databaseName = databaseName;
+		this.collectionName = collectionName;
+	}
+
+	public String getDatabaseName() {
         return databaseName;
     }
 
     public String getCollectionName() {
         return collectionName;
+    }
+    
+    public String getNamespace() {
+        return databaseName + "." + collectionName;
     }
 
     public String toString() {

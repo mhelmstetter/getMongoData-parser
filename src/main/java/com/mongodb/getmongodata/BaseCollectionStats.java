@@ -23,6 +23,8 @@ public class BaseCollectionStats {
 	private Double bytesReadIntoCache = 0.0;
 	private Double bytesWrittenFromCache = 0.0;
 	
+	private Double fileMbAvailable = 0.0;
+	
 
 	public BaseCollectionStats() {
 		super();
@@ -189,6 +191,14 @@ public class BaseCollectionStats {
 
 	public Double getBytesWrittenFromCache() {
 		return bytesWrittenFromCache;
+	}
+
+	public Double getFileMbAvailable() {
+		return fileMbAvailable;
+	}
+
+	public void setFileMbAvailable(Double fileMbAvailable) {
+		this.fileMbAvailable = fileMbAvailable;
 	}
 
 }
