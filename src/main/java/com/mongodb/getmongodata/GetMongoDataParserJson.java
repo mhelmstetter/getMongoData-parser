@@ -249,12 +249,20 @@ public class GetMongoDataParserJson {
     
     @SuppressWarnings("unused")
     public void parse() throws IOException, ParseException {
-        
-        List<Map> result = (List<Map>)parseJson();
-        
+
+        Object parsedJson = parseJson();
+        List<Map> result;
+
+        if (parsedJson instanceof LinkedHashMap) {
+            result = new LinkedList<>();
+            result.add((LinkedHashMap)parsedJson);
+        } else {
+            result = (List<Map>)parsedJson;
+        }
+
         for (Map jsonMap : result) {
             String section = (String)jsonMap.get("section");
-            
+
             Object output = jsonMap.get("output");
             if (output instanceof LinkedHashMap) {
                 LinkedHashMap e = (LinkedHashMap)output;
@@ -270,7 +278,7 @@ public class GetMongoDataParserJson {
                 }
                 //System.out.println(section);
             }
-            
+
         }
         
         

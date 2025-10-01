@@ -14,9 +14,10 @@ public class Collection {
 	
 	private Namespace namespace;
     private String name;
+    private String type;
     private Map<String, Object> shardKey;
     private CollectionStats collectionStats;
-    
+
     private Map<String, Index> indexes = new LinkedHashMap<>();
     
     private Map<String, Index> internalNameMap = new LinkedHashMap<>();
@@ -78,5 +79,26 @@ public class Collection {
 	public void setShardKey(Map<String, Object> shardKey) {
 		this.shardKey = shardKey;
 	}
+
+	public String getType() {
+		return type;
+	}
+
+	public void setType(String type) {
+		this.type = type;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("Collection [namespace=");
+		builder.append(namespace);
+		builder.append(", name=");
+		builder.append(name);
+		builder.append("]");
+		return builder.toString();
+	}
+	
+	
 
 }

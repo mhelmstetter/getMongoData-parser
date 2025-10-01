@@ -402,9 +402,6 @@ public class GetMongoDataParser {
     private CollectionStats parseCollectionStats(Map jsonObject, boolean topLevel) {
     	CollectionStats collStats = new CollectionStats();
     	String nsStr = (String)jsonObject.get("ns");
-    	if (nsStr.equals("core.a_t_s_note")) {
-    		System.out.println();
-    	}
         if (nsStr != null) {
         	this.ns = new Namespace(nsStr);
             collStats.setNs(ns);
@@ -500,6 +497,7 @@ public class GetMongoDataParser {
     private void collectionStats() throws ParseException, IOException {
         Object obj = parseJson();
         if (obj == null) {
+        	logger.debug("parseJson returned null");
         	return;
         }
         Map jsonObject = (Map) obj;
@@ -507,8 +505,14 @@ public class GetMongoDataParser {
         // CollectionStats collStats = parseGson(CollectionStats.class);
         collStats = parseCollectionStats(jsonObject, true);
         
+        if (collStats == null) {
+        	logger.debug("collStats was null for json: {}", jsonObject);
+        	return;
+        }
+        
         if (coll == null) {
         	// ignore, could be filtered
+        	logger.debug("collectionStats coll is null");
             //System.out.println("***** Collection is null for " + collStats.getCollectionName());
         	return;
         } else {
@@ -536,6 +540,7 @@ public class GetMongoDataParser {
         } else {
         	db.setPrimaryShard((String) jsonObject.get("primary"));
         }
+        
 
         Map<String, BaseCollectionStats> shards = collStats.getShards();
         if (shards != null) {
@@ -1004,7 +1009,10 @@ public class GetMongoDataParser {
     	    		cell = row.createCell(1);
     	    		cell.setCellValue(cs.getNs().getCollectionName());
     			} else {
-    				logger.debug("Ignoring collection {}, no stats", coll);
+    				if (coll != null && !coll.getName().startsWith("cache.")) {
+    					logger.debug("Ignoring {}, no stats", coll);
+    				}
+    				
     			}
     			
     		}
@@ -1041,6 +1049,7 @@ public class GetMongoDataParser {
     	updates.add(set("accesses", ix.accessOps));
     	updates.add(set("size", ix.size));
     	updates.add(set("name", ix.internalName));
+    	updates.add(set("expireAfterSeconds", ix.expireAfterSeconds));
     	
     	Bson update = combine(updates);
 		statsColl.updateOne(key, update, UPDATE_OPTIONS);
@@ -1146,8 +1155,8 @@ public class GetMongoDataParser {
             			}
         			}
         			
-    			} else {
-    				logger.debug("Ignoring collection {}, no stats", coll);
+    			} else if (coll != null && !coll.getName().startsWith("cache.")) {
+    				logger.debug("Ignoring {}, no stats", coll);
     			}
     			
     		}

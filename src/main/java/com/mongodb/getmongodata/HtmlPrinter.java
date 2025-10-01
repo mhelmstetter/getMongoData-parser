@@ -27,14 +27,22 @@ public class HtmlPrinter {
     }
     
     public void print(File outputFile) throws IOException {
-        String result = velocity.mergeTemplateIntoString(template, model);
-        //velocity.mergeTemplateIntoString(templateLocation, model);
-        
-        //FileUtils.forceMkdir(xmlFile.getParentFile());
-        System.out.println("Writing to " + outputFile.getPath());
-        BufferedWriter out = new BufferedWriter(new FileWriter(outputFile));
-        out.write(result);
-        out.close();
+        try {
+            System.out.println("Merging template: " + template);
+            System.out.println("Model keys: " + model.keySet());
+            String result = velocity.mergeTemplateIntoString(template, model);
+            System.out.println("Template merged, result length: " + result.length());
+
+            //FileUtils.forceMkdir(xmlFile.getParentFile());
+            System.out.println("Writing to " + outputFile.getPath());
+            BufferedWriter out = new BufferedWriter(new FileWriter(outputFile));
+            out.write(result);
+            out.close();
+        } catch (Exception e) {
+            System.err.println("ERROR during template merge: " + e.getMessage());
+            e.printStackTrace();
+            throw new IOException("Failed to generate HTML", e);
+        }
     }
     
     public void setVelocityService(VelocityServiceImpl velocityService) {

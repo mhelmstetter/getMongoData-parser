@@ -200,6 +200,7 @@ code,pre{font-family:Monaco,Consolas,"Lucida Console",monospace;
    <thead>
       <tr>
         <th>Collection</th>
+        <th>Type</th>
         #if($sharded)
         <th>Sharded</th>
         #end
@@ -221,6 +222,7 @@ code,pre{font-family:Monaco,Consolas,"Lucida Console",monospace;
       #set($collStats = $coll.getCollectionStats())
       <tr>
         <td><b><a href="#${db.getName()}_${coll.getName()}">${coll.getName()}</a></b></td>
+        <td>${coll.getType()}</td>
         #if($sharded)
         <td>${collStats.sharded}</td>
         #end

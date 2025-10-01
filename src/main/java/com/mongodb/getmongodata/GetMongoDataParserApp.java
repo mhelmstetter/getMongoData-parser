@@ -55,6 +55,32 @@ public class GetMongoDataParserApp {
         System.exit(-1);
     }
 
+    private static String detectJsonFormat(File jsonFile) {
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(jsonFile))) {
+            StringBuilder content = new StringBuilder();
+            String line;
+            int lineCount = 0;
+            // Read first few lines to detect format
+            while ((line = reader.readLine()) != null && lineCount < 10) {
+                content.append(line);
+                lineCount++;
+            }
+            String firstLines = content.toString();
+
+            // Check for v2 format markers (databaseStats at top level)
+            if (firstLines.contains("\"databaseStats\"") &&
+                firstLines.contains("\"serverInfo\"")) {
+                return "v2";
+            }
+
+            // Otherwise assume v1 format
+            return "v1";
+        } catch (Exception e) {
+            System.err.println("Error detecting JSON format: " + e.getMessage());
+            return "v1"; // Default to v1
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         CommandLine line = initializeAndParseCommandLineOptions(args);
         //String filename = (String)line.getOptionValue("f");
@@ -71,9 +97,17 @@ public class GetMongoDataParserApp {
         String[] filters = line.getOptionValues("x");
         boolean skipSamples = line.hasOption("n");
         if (fileNames.length > 0 && fileNames[0].endsWith(".json")) {
-        	GetMongoDataParserJson parser = new GetMongoDataParserJson(files[0]);
-            parser.parse();
-        	
+        	// Detect JSON format by checking first few lines
+        	String jsonFormat = detectJsonFormat(files[0]);
+
+        	if ("v2".equals(jsonFormat)) {
+        		GetMongoDataParserJsonV2 parser = new GetMongoDataParserJsonV2(files[0]);
+        		parser.parse();
+        	} else {
+        		GetMongoDataParserJson parser = new GetMongoDataParserJson(files[0]);
+        		parser.parse();
+        	}
+
         } else {
         	GetMongoDataParser parser = new GetMongoDataParser(files, output, connectionUri, filters, skipSamples, prefix);
             parser.parse();
